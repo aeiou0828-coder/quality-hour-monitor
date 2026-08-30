@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>质检小时产能监控</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --ink: #1f2937;
+      --muted: #667085;
+      --line: #d0d5dd;
+      --surface: #ffffff;
+      --canvas: #f5f7fa;
+      --navy: #17324d;
+      --teal: #0f766e;
+      --teal-soft: #e6fffa;
+      --blue-soft: #eaf2f8;
+      --orange: #c2410c;
+      --orange-soft: #fff1e8;
+      --red: #b42318;
+      --red-soft: #fee4e2;
+      --green: #027a48;
+      --green-soft: #ecfdf3;
+      --shadow: 0 12px 30px rgba(16, 24, 40, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); font-family: "Microsoft YaHei", "PingFang SC", Arial, sans-serif; font-size: 14px; overflow-x: hidden; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .app-shell { min-height: 100vh; }
+    .topbar { min-height: 72px; padding: 15px 28px; background: var(--navy); color: white; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
+    .brand { display: flex; align-items: center; gap: 13px; min-width: 0; }
+    .brand-mark { width: 38px; height: 38px; border: 1px solid rgba(255,255,255,.35); border-radius: 8px; display: grid; place-items: center; font-size: 13px; font-weight: 700; letter-spacing: .5px; color: #b8f3eb; }
+    .brand h1 { margin: 0; font-size: 19px; font-weight: 700; line-height: 1.25; letter-spacing: 0; }
+    .brand p { margin: 4px 0 0; font-size: 12px; color: #c8d6e5; }
+    .top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .status-chip { padding: 6px 10px; border: 1px solid rgba(184,243,235,.45); border-radius: 999px; color: #b8f3eb; font-size: 12px; white-space: nowrap; }
+    .btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 6px; padding: 9px 13px; font-weight: 600; }
+    .btn:hover { border-color: var(--teal); color: var(--teal); }
+    .btn-primary { border-color: var(--teal); background: var(--teal); color: white; }
+    .btn-primary:hover { background: #0b5f59; color: white; }
+    .btn-dark { border-color: rgba(255,255,255,.3); background: rgba(255,255,255,.1); color: white; }
+    .btn-dark:hover { border-color: white; color: white; background: rgba(255,255,255,.17); }
+
+    .main-layout { max-width: 1640px; margin: 0 auto; padding: 24px 28px 36px; display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; }
+    .sidebar { display: grid; gap: 16px; }
+    .panel, .stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow); }
+    .panel { padding: 18px; }
+    .panel h2, .panel h3, .section-header h2 { margin: 0; letter-spacing: 0; }
+    .panel h2 { font-size: 16px; }
+    .panel h3 { font-size: 14px; }
+    .panel-subtitle { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .drop-zone { display: block; margin-top: 15px; padding: 22px 15px; border: 1px dashed #98a2b3; border-radius: 7px; text-align: center; background: #fbfcfd; color: var(--muted); transition: border-color .15s ease, background .15s ease; }
+    .drop-zone strong { display: block; color: var(--ink); font-size: 14px; margin-bottom: 6px; }
+    .drop-zone.is-dragging { border-color: var(--teal); background: var(--teal-soft); }
+    .file-input { position: absolute; inline-size: 1px; block-size: 1px; opacity: 0; pointer-events: none; }
+    .file-meta { min-height: 18px; margin-top: 10px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .upload-actions { display: grid; gap: 9px; margin-top: 13px; }
+    .upload-actions .btn { width: 100%; }
+    .rule-list { margin: 13px 0 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+    .rule-list li { display: grid; grid-template-columns: 8px minmax(0, 1fr); gap: 9px; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .rule-list li::before { content: ""; width: 8px; height: 8px; margin-top: 5px; border-radius: 50%; background: var(--teal); }
+    .rule-list code { padding: 2px 4px; border-radius: 4px; color: var(--navy); background: var(--blue-soft); font-family: Consolas, monospace; font-size: 11px; }
+    .rule-note { margin-top: 14px; padding-top: 12px; border-top: 1px solid #eaecf0; color: var(--muted); font-size: 11px; line-height: 1.55; }
+    .notice { display: none; margin-bottom: 16px; padding: 11px 13px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); line-height: 1.5; }
+    .notice.is-visible { display: block; }
+    .notice.is-error { border-color: #fecdca; background: var(--red-soft); color: var(--red); }
+    .notice.is-warn { border-color: #fedf89; background: #fffaeb; color: #9a3412; }
+    .dashboard { min-width: 0; }
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 18px; }
+    .stat-card { padding: 15px 17px; box-shadow: none; }
+    .stat-label { color: var(--muted); font-size: 12px; }
+    .stat-value { margin-top: 7px; font-size: 25px; font-weight: 700; color: var(--navy); line-height: 1; }
+    .stat-context { margin-top: 7px; color: var(--muted); font-size: 11px; }
+    .toolbar { margin-bottom: 18px; padding: 13px 15px; border: 1px solid var(--line); background: var(--surface); display: flex; align-items: center; justify-content: space-between; gap: 15px; flex-wrap: wrap; }
+    .toolbar-left, .toolbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .toolbar label { color: var(--muted); font-size: 12px; }
+    .form-control, .form-select { min-height: 35px; border: 1px solid var(--line); border-radius: 5px; background: white; color: var(--ink); padding: 7px 9px; }
+    .threshold-wrap { display: inline-flex; align-items: center; gap: 6px; }
+    .threshold-input { width: 68px; text-align: right; }
+    .section { margin-top: 18px; }
+    .section-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .section-header h2 { font-size: 17px; }
+    .section-header p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .section-title-wrap { min-width: 0; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--surface); }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    th, td { border-bottom: 1px solid #eaecf0; padding: 10px 10px; text-align: left; white-space: nowrap; vertical-align: middle; }
+    th { background: var(--navy); color: white; font-size: 12px; font-weight: 600; }
+    td { color: #344054; font-size: 12px; }
+    tbody tr:hover { background: #f8fafc; }
+    td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+    td.center, th.center { text-align: center; }
+    .daily-table th:first-child, .daily-table td:first-child { position: sticky; left: 0; z-index: 2; }
+    .daily-table th:first-child { background: var(--navy); }
+    .daily-table td:first-child { background: var(--surface); font-weight: 700; color: var(--navy); }
+    .daily-table tr:hover td:first-child { background: #f8fafc; }
+    .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 4px 8px; font-size: 11px; font-weight: 700; }
+    .badge-danger { background: var(--red-soft); color: var(--red); }
+    .badge-ok { background: var(--green-soft); color: var(--green); }
+    .bar-strip { display: flex; align-items: end; gap: 2px; width: 125px; height: 22px; }
+    .bar-strip span { flex: 1; min-width: 2px; background: #b8e9e2; border-radius: 2px 2px 0 0; }
+    .bar-strip span.is-peak { background: var(--orange); }
+    .empty { padding: 52px 18px; text-align: center; color: var(--muted); }
+    .empty strong { display: block; margin-bottom: 7px; color: var(--ink); font-size: 16px; }
+    .hour-table { min-width: 1540px; }
+    .hour-table th, .hour-table td { padding: 8px 8px; text-align: center; }
+    .hour-table th:nth-child(1), .hour-table td:nth-child(1), .hour-table th:nth-child(2), .hour-table td:nth-child(2) { text-align: left; }
+    .hour-table th:nth-child(-n+3), .hour-table td:nth-child(-n+3) { position: sticky; z-index: 2; }
+    .hour-table th:nth-child(1), .hour-table td:nth-child(1) { left: 0; min-width: 105px; }
+    .hour-table th:nth-child(2), .hour-table td:nth-child(2) { left: 105px; min-width: 145px; }
+    .hour-table th:nth-child(3), .hour-table td:nth-child(3) { left: 250px; min-width: 78px; }
+    .hour-table th:nth-child(-n+3) { background: var(--navy); }
+    .hour-table td:nth-child(-n+3) { background: var(--surface); }
+    .hour-table tbody tr:hover td:nth-child(-n+3) { background: #f8fafc; }
+    .hour-cell { min-width: 46px; font-variant-numeric: tabular-nums; }
+    .heat-0 { color: #98a2b3; background: #fbfcfd; }
+    .heat-1 { color: #344054; background: #effaf8; }
+    .heat-2 { color: #344054; background: #c8f0e9; }
+    .heat-3 { color: #344054; background: #fedf89; }
+    .heat-4 { color: #7a271a; background: #fda29b; font-weight: 700; }
+    .legend { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-top: 10px; color: var(--muted); font-size: 11px; }
+    .legend-item { display: inline-flex; align-items: center; gap: 5px; }
+    .legend-swatch { width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(16,24,40,.08); }
+    .legend-swatch.l0 { background: #fbfcfd; } .legend-swatch.l1 { background: #effaf8; } .legend-swatch.l2 { background: #c8f0e9; } .legend-swatch.l3 { background: #fedf89; } .legend-swatch.l4 { background: #fda29b; }
+    .footer-note { margin-top: 22px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+
+    @media (max-width: 1240px) {
+      .main-layout { grid-template-columns: 250px minmax(0, 1fr); padding: 20px; gap: 18px; }
+      .kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .topbar { padding: 13px 20px; }
+    }
+    @media (max-width: 760px) {
+      .topbar { align-items: flex-start; flex-direction: column; gap: 12px; }
+      .top-actions { width: 100%; justify-content: flex-start; }
+      .main-layout { display: block; padding: 14px; }
+      .sidebar { margin-bottom: 18px; }
+      .panel { padding: 15px; }
+      .kpi-grid { gap: 8px; }
+      .stat-card { padding: 13px; }
+      .stat-value { font-size: 21px; }
+      .toolbar { align-items: stretch; }
+      .toolbar-left, .toolbar-right { width: 100%; }
+      .toolbar-left .form-select { flex: 1; min-width: 0; }
+      .toolbar-right { justify-content: space-between; }
+      .section-header { align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 420px) {
+      .brand h1 { font-size: 17px; }
+      .kpi-grid { grid-template-columns: 1fr 1fr; }
+      .stat-label { min-height: 28px; }
+      .stat-context { line-height: 1.35; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">QC</div>
+        <div>
+          <h1>质检小时产能监控</h1>
+          <p id="dataStatus">等待上传质检记录</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <span class="status-chip">口径已锁定</span>
+        <button class="btn btn-dark" id="downloadTemplate" type="button">下载上传模板</button>
+        <button class="btn btn-dark" id="exportReport" type="button">导出当前汇总</button>
+      </div>
+    </header>
+
+    <main class="main-layout">
+      <aside class="sidebar">
+        <section class="panel">
+          <h2>上传质检记录</h2>
+          <p class="panel-subtitle">支持 Excel 或 CSV。上传后自动校验字段并更新右侧所有日期汇总。</p>
+          <label class="drop-zone" id="dropZone" for="fileInput">
+            <strong>选择文件或拖放到这里</strong>
+            <span>.xlsx / .xls / .csv</span>
+            <input class="file-input" id="fileInput" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
+          </label>
+          <div class="file-meta" id="fileMeta">必填字段：一审质检人、质检更新时间</div>
+          <div class="upload-actions">
+            <button class="btn btn-primary" id="loadDemo" type="button">加载当前样例</button>
+            <button class="btn" id="clearData" type="button">清空当前数据</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h3>上传口径</h3>
+          <ul class="rule-list">
+            <li><span>质检人取 <code>一审质检人</code>，空值记录跳过。</span></li>
+            <li><span>时间取 <code>质检更新时间</code>，无法解析的记录跳过。</span></li>
+            <li><span>日期按更新时间所在日期归属，小时按更新时间的 00–23 点归属。</span></li>
+            <li><span>每条有效记录计为 1 个质检对话；跨日对话按质检更新时间统计。</span></li>
+          </ul>
+          <div class="rule-note">表头需与口径中的字段名称完全一致。页面只在当前浏览器中处理上传文件，不会自动上传到第三方服务。</div>
+        </section>
+
+        <section class="panel">
+          <h3>集中度预警</h3>
+          <p class="panel-subtitle">某质检人当天最高小时量 ÷ 当天总量达到阈值时标记。</p>
+          <div class="threshold-wrap" style="margin-top:13px">
+            <label for="thresholdInput">预警阈值</label>
+            <input class="form-control threshold-input" id="thresholdInput" type="number" min="10" max="90" step="5" value="30" aria-label="集中度预警阈值百分比">
+            <span>%</span>
+          </div>
+        </section>
+      </aside>
+
+      <section class="dashboard">
+        <div class="notice" id="notice" role="status"></div>
+        <div class="kpi-grid">
+          <div class="stat-card"><div class="stat-label">有效质检量</div><div class="stat-value" id="kpiTotal">0</div><div class="stat-context" id="kpiTotalContext">等待上传</div></div>
+          <div class="stat-card"><div class="stat-label">质检日期数</div><div class="stat-value" id="kpiDates">0</div><div class="stat-context">当前筛选范围</div></div>
+          <div class="stat-card"><div class="stat-label">一审质检人数</div><div class="stat-value" id="kpiReviewers">0</div><div class="stat-context">按有效记录计算</div></div>
+          <div class="stat-card"><div class="stat-label">全员峰值小时</div><div class="stat-value" id="kpiPeak">--</div><div class="stat-context" id="kpiPeakContext">等待上传</div></div>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-left">
+            <label for="dateFilter">查看日期</label>
+            <select class="form-select" id="dateFilter" aria-label="查看日期"><option value="all">全部日期</option></select>
+            <span class="text-muted" id="filterSummary">全部日期</span>
+          </div>
+          <div class="toolbar-right">
+            <span class="text-muted">当前表格默认显示全部日期</span>
+          </div>
+        </div>
+
+        <section class="section">
+          <div class="section-header">
+            <div class="section-title-wrap">
+              <h2>全日期总览</h2>
+              <p>一行一个日期，快速查看当天总量、峰值时段和集中度预警人数。</p>
+            </div>
+          </div>
+          <div class="table-wrap" id="dailyWrap">
+            <div class="empty"><strong>上传后自动生成日期总览</strong><span>上传文件后，这里会一次显示所有日期。</span></div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-header">
+            <div class="section-title-wrap">
+              <h2>日期 × 一审质检人 × 小时</h2>
+              <p>每个单元格为该质检人在该日期、该小时完成的质检对话数；红色表示该行的高峰小时。</p>
+            </div>
+          </div>
+          <div class="table-wrap" id="hourWrap">
+            <div class="empty"><strong>等待有效数据</strong><span>上传文件后自动汇总。</span></div>
+          </div>
+          <div class="legend" aria-label="小时热力图图例">
+            <span>单行小时量：</span>
+            <span class="legend-item"><i class="legend-swatch l0"></i>0</span>
+            <span class="legend-item"><i class="legend-swatch l1"></i>较低</span>
+            <span class="legend-item"><i class="legend-swatch l2"></i>中等</span>
+            <span class="legend-item"><i class="legend-swatch l3"></i>较高</span>
+            <span class="legend-item"><i class="legend-swatch l4"></i>峰值</span>
+          </div>
+        </section>
+
+        <div class="footer-note" id="footerNote">统计口径固定为：一审质检人 + 质检更新时间。上传后可用“导出当前汇总”下载当前筛选范围的 CSV。</div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "quality-hour-monitor-v1";
+      const state = { rows: [], fileName: "", invalid: 0, threshold: 0.30, dateFilter: "all", isDemo: false };
+      const $ = (id) => document.getElementById(id);
+      const fmt = new Intl.NumberFormat("zh-CN");
+      const pad = (value) => String(value).padStart(2, "0");
+      const hourLabel = (hour) => `${pad(hour)}:00`;
+      const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[char]));
+      const fileDate = (date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+
+      function showNotice(message, kind = "") {
+        const el = $("notice");
+        el.textContent = message;
+        el.className = `notice is-visible${kind ? ` is-${kind}` : ""}`;
+      }
+
+      function clearNotice() {
+        $("notice").className = "notice";
+        $("notice").textContent = "";
+      }
+
+      function parseTimestamp(value) {
+        if (value === null || value === undefined || value === "") return null;
+        if (typeof value === "number" && window.XLSX?.SSF?.parse_date_code) {
+          const parsed = XLSX.SSF.parse_date_code(value);
+          if (parsed && parsed.y && parsed.m && parsed.d) return { year: parsed.y, month: parsed.m, day: parsed.d, hour: parsed.H || 0 };
+        }
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+          return { year: value.getUTCFullYear(), month: value.getUTCMonth() + 1, day: value.getUTCDate(), hour: value.getUTCHours() };
+        }
+        const text = String(value).trim();
+        const match = text.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})(?:[ T]+(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?)?/);
+        if (!match) return null;
+        return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]), hour: Number(match[4] || 0) };
+      }
+
+      function aggregate(rows) {
+        const dates = new Map();
+        const reviewers = new Set();
+        const byPair = new Map();
+        const globalHours = Array(24).fill(0);
+        for (const row of rows) {
+          reviewers.add(row.reviewer);
+          globalHours[row.hour] += 1;
+          if (!dates.has(row.date)) dates.set(row.date, { total: 0, hours: Array(24).fill(0), reviewers: new Map() });
+          const dateItem = dates.get(row.date);
+          dateItem.total += 1;
+          dateItem.hours[row.hour] += 1;
+          if (!dateItem.reviewers.has(row.reviewer)) dateItem.reviewers.set(row.reviewer, { total: 0, hours: Array(24).fill(0) });
+          const person = dateItem.reviewers.get(row.reviewer);
+          person.total += 1;
+          person.hours[row.hour] += 1;
+          byPair.set(`${row.date}\u0000${row.reviewer}`, { date: row.date, reviewer: row.reviewer, total: person.total, hours: person.hours });
+        }
+        return { dates, reviewers, byPair, globalHours };
+      }
+
+      function peak(hours) {
+        let peakHour = 0;
+        let peakValue = hours[0] || 0;
+        for (let hour = 1; hour < hours.length; hour += 1) {
+          if (hours[hour] > peakValue) { peakHour = hour; peakValue = hours[hour]; }
+        }
+        return { hour: peakHour, value: peakValue };
+      }
+
+      function barStrip(hours) {
+        const max = Math.max(...hours, 1);
+        const peakValue = Math.max(...hours);
+        return `<div class="bar-strip" aria-label="24小时质检量分布">${hours.map((value, index) => `<span class="${value === peakValue && value > 0 ? "is-peak" : ""}" style="height:${Math.max(value ? 4 : 2, Math.round(value / max * 22))}px" title="${hourLabel(index)}：${fmt.format(value)} 条"></span>`).join("")}</div>`;
+      }
+
+      function pairRows(summary) {
+        return [...summary.byPair.values()].sort((a, b) => a.date.localeCompare(b.date) || b.total - a.total || a.reviewer.localeCompare(b.reviewer, "zh-CN"));
+      }
+
+      function filteredRows() {
+        return state.dateFilter === "all" ? state.rows : state.rows.filter((row) => row.date === state.dateFilter);
+      }
+
+      function renderSelectors(allSummary) {
+        const select = $("dateFilter");
+        const previous = state.dateFilter;
+        select.innerHTML = `<option value="all">全部日期</option>${[...allSummary.dates.keys()].sort().map((date) => `<option value="${esc(date)}">${esc(date)}</option>`).join("")}`;
+        state.dateFilter = [...allSummary.dates.keys()].includes(previous) || previous === "all" ? previous : "all";
+        select.value = state.dateFilter;
+        $("filterSummary").textContent = state.dateFilter === "all" ? `全部日期，共 ${allSummary.dates.size} 天` : state.dateFilter;
+      }
+
+      function renderKpis(summary) {
+        const rows = filteredRows();
+        const globalPeak = peak(summary.globalHours);
+        const peakDate = [...summary.dates.entries()].sort((a, b) => b[1].total - a[1].total)[0];
+        $("kpiTotal").textContent = fmt.format(rows.length);
+        $("kpiDates").textContent = fmt.format(new Set(rows.map((row) => row.date)).size);
+        $("kpiReviewers").textContent = fmt.format(new Set(rows.map((row) => row.reviewer)).size);
+        $("kpiPeak").textContent = rows.length ? hourLabel(globalPeak.hour) : "--";
+        $("kpiTotalContext").textContent = state.isDemo ? "当前样例数据" : (state.fileName ? state.fileName : "等待上传");
+        $("kpiPeakContext").textContent = rows.length ? `全员 ${fmt.format(globalPeak.value)} 条${peakDate ? ` · 最大日期 ${peakDate[0]}` : ""}` : "等待上传";
+        $("dataStatus").textContent = rows.length ? `${state.isDemo ? "当前样例" : state.fileName} · ${fmt.format(rows.length)} 条有效记录` : "等待上传质检记录";
+      }
+
+      function renderDaily(summary) {
+        const rows = [...summary.dates.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+        if (!rows.length) {
+          $("dailyWrap").innerHTML = `<div class="empty"><strong>上传后自动生成日期总览</strong><span>上传文件后，这里会一次显示所有日期。</span></div>`;
+          return;
+        }
+        const body = rows.map(([date, item]) => {
+          const people = [...item.reviewers.entries()];
+          const datePeak = peak(item.hours);
+          const flagged = people.filter(([, person]) => person.total > 0 && Math.max(...person.hours) / person.total >= state.threshold).map(([name]) => name);
+          const ratio = item.total ? Math.max(...item.hours) / item.total : 0;
+          return `<tr><td>${esc(date)}</td><td class="num">${fmt.format(item.total)}</td><td class="num">${fmt.format(people.length)}</td><td class="center">${hourLabel(datePeak.hour)}</td><td class="num">${fmt.format(datePeak.value)}</td><td class="num">${(ratio * 100).toFixed(1)}%</td><td>${flagged.length ? `<span class="badge badge-danger">${fmt.format(flagged.length)} 人 · ${esc(flagged.join("、"))}</span>` : `<span class="badge badge-ok">正常</span>`}</td><td>${barStrip(item.hours)}</td></tr>`;
+        }).join("");
+        $("dailyWrap").innerHTML = `<table class="daily-table"><thead><tr><th>日期</th><th class="num">当天总量</th><th class="num">质检人数</th><th class="center">峰值小时</th><th class="num">峰值量</th><th class="num">峰值占比</th><th>集中度预警</th><th>24小时分布</th></tr></thead><tbody>${body}</tbody></table>`;
+      }
+
+      function heatClass(value, max) {
+        if (!value) return "heat-0";
+        if (value === max) return "heat-4";
+        const ratio = value / Math.max(max, 1);
+        return ratio >= .72 ? "heat-3" : ratio >= .38 ? "heat-2" : "heat-1";
+      }
+
+      function renderHours(summary) {
+        const rows = pairRows(summary);
+        if (!rows.length) {
+          $("hourWrap").innerHTML = `<div class="empty"><strong>等待有效数据</strong><span>上传文件后自动汇总。</span></div>`;
+          return;
+        }
+        const head = Array.from({ length: 24 }, (_, hour) => `<th class="center">${hourLabel(hour)}</th>`).join("");
+        const body = rows.map((row) => {
+          const max = Math.max(...row.hours);
+          const maxHour = row.hours.indexOf(max);
+          const ratio = row.total ? max / row.total : 0;
+          const flagged = ratio >= state.threshold;
+          const cells = row.hours.map((value, hour) => `<td class="hour-cell ${heatClass(value, max)}" title="${esc(row.date)} · ${esc(row.reviewer)} · ${hourLabel(hour)}：${fmt.format(value)} 条">${fmt.format(value)}</td>`).join("");
+          return `<tr><td>${esc(row.date)}</td><td>${esc(row.reviewer)}</td><td class="num">${fmt.format(row.total)}</td>${cells}<td class="center">${hourLabel(maxHour)}</td><td class="num">${(ratio * 100).toFixed(1)}%</td><td class="center">${flagged ? `<span class="badge badge-danger">集中度较高</span>` : `<span class="badge badge-ok">正常</span>`}</td></tr>`;
+        }).join("");
+        $("hourWrap").innerHTML = `<table class="hour-table"><thead><tr><th>日期</th><th>一审质检人</th><th class="num">总量</th>${head}<th class="center">最高小时</th><th class="num">最高小时占比</th><th class="center">判断</th></tr></thead><tbody>${body}</tbody></table>`;
+      }
+
+      function render() {
+        const allSummary = aggregate(state.rows);
+        renderSelectors(allSummary);
+        const summary = aggregate(filteredRows());
+        renderKpis(summary);
+        renderDaily(summary);
+        renderHours(summary);
+        $("footerNote").textContent = state.rows.length ? `统计口径固定为：一审质检人 + 质检更新时间。${state.invalid ? ` 本次上传跳过 ${fmt.format(state.invalid)} 行无效记录。` : " 本次上传没有跳过记录。"} 可调整左侧阈值，预警会自动更新。` : "统计口径固定为：一审质检人 + 质检更新时间。上传后可用“导出当前汇总”下载当前筛选范围的 CSV。";
+      }
+
+      function saveState() {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify({ rows: state.rows, fileName: state.fileName, invalid: state.invalid, threshold: state.threshold, isDemo: state.isDemo })); } catch (error) { /* storage is optional */ }
+      }
+
+      function loadState() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+          if (saved && Array.isArray(saved.rows)) {
+            state.rows = saved.rows;
+            state.fileName = saved.fileName || "浏览器缓存数据";
+            state.invalid = Number(saved.invalid || 0);
+            state.threshold = Number(saved.threshold || .30);
+            state.isDemo = Boolean(saved.isDemo);
+            $("thresholdInput").value = Math.round(state.threshold * 100);
+          }
+        } catch (error) { /* ignore malformed local cache */ }
+      }
+
+      function processMatrix(matrix, fileName) {
+        if (!matrix.length) throw new Error("文件没有可读取的数据。");
+        const headers = matrix[0].map((value) => String(value ?? "").trim());
+        const reviewerIndex = headers.indexOf("一审质检人");
+        const timeIndex = headers.indexOf("质检更新时间");
+        if (reviewerIndex < 0 || timeIndex < 0) throw new Error("缺少必填字段。请确认表头包含“一审质检人”和“质检更新时间”。");
+        const rows = [];
+        let invalid = 0;
+        for (let index = 1; index < matrix.length; index += 1) {
+          const source = matrix[index] || [];
+          if (!source.some((value) => value !== null && value !== undefined && value !== "")) continue;
+          const reviewer = String(source[reviewerIndex] ?? "").trim();
+          const parts = parseTimestamp(source[timeIndex]);
+          if (!reviewer || !parts || parts.month < 1 || parts.month > 12 || parts.day < 1 || parts.day > 31 || parts.hour < 0 || parts.hour > 23) { invalid += 1; continue; }
+          rows.push({ date: `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`, hour: parts.hour, reviewer });
+        }
+        if (!rows.length) throw new Error("没有找到同时包含有效一审质检人和质检更新时间的记录。");
+        state.rows = rows;
+        state.fileName = fileName;
+        state.invalid = invalid;
+        state.isDemo = false;
+        state.dateFilter = "all";
+        saveState();
+        clearNotice();
+        showNotice(`已完成上传并自动汇总：${fmt.format(rows.length)} 条有效记录，覆盖 ${new Set(rows.map((row) => row.date)).size} 个日期。${invalid ? ` 已跳过 ${fmt.format(invalid)} 行无效记录。` : ""}`, invalid ? "warn" : "");
+        render();
+      }
+
+      function handleFile(file) {
+        if (!file) return;
+        if (typeof XLSX === "undefined") { showNotice("解析组件未加载，请联网后刷新页面再试。", "error"); return; }
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const workbook = XLSX.read(event.target.result, { type: "array", cellDates: false, raw: true });
+            const sheet = workbook.Sheets[workbook.SheetNames[0]];
+            const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true });
+            processMatrix(matrix, file.name);
+          } catch (error) {
+            showNotice(error.message || "文件解析失败，请检查文件格式。", "error");
+          }
+        };
+        reader.onerror = () => showNotice("文件读取失败，请重新选择文件。", "error");
+        reader.readAsArrayBuffer(file);
+      }
+
+      function demoRows() {
+        const data = {
+          "质检【Dahu】": [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,40,45,41,38,4,23,29,0],
+          "质检【Doragon】": [8,8,20,29,15,1,24,92,19,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          "质检【Nodt】": [0,0,0,0,0,0,0,0,0,12,6,19,18,25,25,49,51,0,0,0,0,0,0,0],
+          "质检组长【Yvonne】": [6,12,25,17,16,20,23,84,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          "质检【Kenz】": [0,0,0,0,0,0,0,0,0,13,64,55,64,6,0,0,0,0,0,0,0,0,0,0],
+          "质检【Roro】": [10,27,6,23,17,18,85,14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+          "质检【hali】": [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,10,5,12,14,6,2,0,8]
+        };
+        return Object.entries(data).flatMap(([reviewer, hours]) => hours.flatMap((count, hour) => Array.from({ length: count }, () => ({ date: "2026-08-29", hour, reviewer }))));
+      }
+
+      function exportReport() {
+        const rows = pairRows(aggregate(filteredRows()));
+        if (!rows.length) { showNotice("当前没有可导出的汇总数据。", "warn"); return; }
+        const headers = ["日期", "一审质检人", "质检总量", ...Array.from({ length: 24 }, (_, hour) => hourLabel(hour)), "单小时最高量", "最高小时", "最高小时占比", "集中度判断"];
+        const data = rows.map((row) => {
+          const max = Math.max(...row.hours); const maxHour = row.hours.indexOf(max); const ratio = row.total ? max / row.total : 0;
+          return [row.date, row.reviewer, row.total, ...row.hours, max, hourLabel(maxHour), `${(ratio * 100).toFixed(1)}%`, ratio >= state.threshold ? "集中度较高" : "正常"];
+        });
+        const csv = [headers, ...data].map((line) => line.map((value) => { const text = String(value ?? ""); return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text; }).join(",")).join("\n");
+        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+        const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "质检小时汇总.csv"; link.click(); URL.revokeObjectURL(link.href);
+      }
+
+      function downloadTemplate() {
+        if (typeof XLSX === "undefined") { showNotice("解析组件未加载，请联网后刷新页面再试。", "error"); return; }
+        const sheet = XLSX.utils.aoa_to_sheet([["一审质检人", "质检更新时间"], ["质检示例", "2026-08-29 08:15:00"]]);
+        const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, sheet, "质检上传");
+        XLSX.writeFile(book, "质检上传模板.xlsx");
+      }
+
+      $("fileInput").addEventListener("change", (event) => handleFile(event.target.files[0]));
+      $("dropZone").addEventListener("dragover", (event) => { event.preventDefault(); $("dropZone").classList.add("is-dragging"); });
+      $("dropZone").addEventListener("dragleave", () => $("dropZone").classList.remove("is-dragging"));
+      $("dropZone").addEventListener("drop", (event) => { event.preventDefault(); $("dropZone").classList.remove("is-dragging"); handleFile(event.dataTransfer.files[0]); });
+      $("dateFilter").addEventListener("change", (event) => { state.dateFilter = event.target.value; render(); });
+      $("thresholdInput").addEventListener("input", (event) => { const value = Math.min(90, Math.max(10, Number(event.target.value) || 30)); state.threshold = value / 100; event.target.value = value; saveState(); render(); });
+      $("loadDemo").addEventListener("click", () => { state.rows = demoRows(); state.fileName = "当前样例（预览）"; state.invalid = 0; state.isDemo = true; state.dateFilter = "all"; saveState(); showNotice("已加载当前样例，上传真实文件后会自动替换样例数据。", "warn"); render(); });
+      $("clearData").addEventListener("click", () => { state.rows = []; state.fileName = ""; state.invalid = 0; state.isDemo = false; state.dateFilter = "all"; localStorage.removeItem(STORAGE_KEY); clearNotice(); render(); });
+      $("exportReport").addEventListener("click", exportReport);
+      $("downloadTemplate").addEventListener("click", downloadTemplate);
+
+      loadState();
+      if (!state.rows.length) {
+        state.rows = demoRows();
+        state.fileName = "当前样例（预览）";
+        state.isDemo = true;
+      }
+      render();
+    })();
+  </script>
+</body>
+</html>
