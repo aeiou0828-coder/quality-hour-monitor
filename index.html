@@ -168,6 +168,7 @@
       <div class="top-actions">
         <span class="status-chip">口径已锁定</span>
         <button class="btn btn-dark" id="downloadTemplate" type="button">下载上传模板</button>
+        <button class="btn btn-dark" id="createShareLink" type="button">生成分享链接</button>
         <button class="btn btn-dark" id="exportReport" type="button">导出当前汇总</button>
       </div>
     </header>
@@ -198,6 +199,11 @@
             <li><span>每条有效记录计为 1 个质检对话；跨日对话按质检更新时间统计。</span></li>
           </ul>
           <div class="rule-note">表头需与口径中的字段名称完全一致。页面只在当前浏览器中处理上传文件，不会自动上传到第三方服务。</div>
+        </section>
+
+        <section class="panel">
+          <h3>分享范围</h3>
+          <p class="panel-subtitle">分享链接包含当前汇总结果，打开链接即可看到所有日期；不包含原始对话明细。</p>
         </section>
 
         <section class="panel">
@@ -271,7 +277,7 @@
   <script>
     (() => {
       const STORAGE_KEY = "quality-hour-monitor-v1";
-      const state = { rows: [], fileName: "", invalid: 0, threshold: 0.30, dateFilter: "all", isDemo: false };
+      const state = { rows: [], fileName: "", invalid: 0, threshold: 0.30, dateFilter: "all", isDemo: false, fromShare: false };
       const $ = (id) => document.getElementById(id);
       const fmt = new Intl.NumberFormat("zh-CN");
       const pad = (value) => String(value).padStart(2, "0");
@@ -288,6 +294,50 @@
       function clearNotice() {
         $("notice").className = "notice";
         $("notice").textContent = "";
+      }
+
+      function clearShareHash() {
+        if (window.location.hash.startsWith("#share=")) window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+
+      function encodeSharePayload(payload) {
+        const bytes = new TextEncoder().encode(JSON.stringify(payload));
+        let binary = "";
+        for (const byte of bytes) binary += String.fromCharCode(byte);
+        return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+      }
+
+      function decodeSharePayload(encoded) {
+        const normalized = encoded.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat((4 - encoded.length % 4) % 4);
+        const binary = atob(normalized);
+        const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+        return JSON.parse(new TextDecoder().decode(bytes));
+      }
+
+      function loadSharedData() {
+        if (!window.location.hash.startsWith("#share=")) return false;
+        try {
+          const payload = decodeSharePayload(window.location.hash.slice(7));
+          if (!payload || payload.v !== 1 || !Array.isArray(payload.rows)) throw new Error("分享链接内容无效。");
+          const rows = payload.rows.flatMap((item) => {
+            const [date, reviewer, hours] = item;
+            if (!date || !reviewer || !Array.isArray(hours) || hours.length !== 24) return [];
+            return hours.flatMap((count, hour) => Array.from({ length: Math.max(0, Number(count) || 0) }, () => ({ date, hour, reviewer })));
+          });
+          if (!rows.length) throw new Error("分享链接中没有有效汇总数据。");
+          state.rows = rows;
+          state.fileName = "分享链接数据";
+          state.invalid = 0;
+          state.isDemo = false;
+          state.fromShare = true;
+          if (Number.isFinite(Number(payload.threshold))) state.threshold = Math.min(.9, Math.max(.1, Number(payload.threshold)));
+          $("thresholdInput").value = Math.round(state.threshold * 100);
+          showNotice(`已载入分享数据：${fmt.format(rows.length)} 条汇总记录，分享者未提供原始明细。`, "warn");
+          return true;
+        } catch (error) {
+          showNotice(error.message || "分享链接解析失败。", "error");
+          return false;
+        }
       }
 
       function parseTimestamp(value) {
@@ -366,9 +416,9 @@
         $("kpiDates").textContent = fmt.format(new Set(rows.map((row) => row.date)).size);
         $("kpiReviewers").textContent = fmt.format(new Set(rows.map((row) => row.reviewer)).size);
         $("kpiPeak").textContent = rows.length ? hourLabel(globalPeak.hour) : "--";
-        $("kpiTotalContext").textContent = state.isDemo ? "当前样例数据" : (state.fileName ? state.fileName : "等待上传");
+        $("kpiTotalContext").textContent = state.fromShare ? "来自分享链接" : (state.isDemo ? "当前样例数据" : (state.fileName ? state.fileName : "等待上传"));
         $("kpiPeakContext").textContent = rows.length ? `全员 ${fmt.format(globalPeak.value)} 条${peakDate ? ` · 最大日期 ${peakDate[0]}` : ""}` : "等待上传";
-        $("dataStatus").textContent = rows.length ? `${state.isDemo ? "当前样例" : state.fileName} · ${fmt.format(rows.length)} 条有效记录` : "等待上传质检记录";
+        $("dataStatus").textContent = rows.length ? `${state.fromShare ? "分享链接数据" : (state.isDemo ? "当前样例" : state.fileName)} · ${fmt.format(rows.length)} 条有效记录` : "等待上传质检记录";
       }
 
       function renderDaily(summary) {
@@ -461,7 +511,9 @@
         state.fileName = fileName;
         state.invalid = invalid;
         state.isDemo = false;
+        state.fromShare = false;
         state.dateFilter = "all";
+        clearShareHash();
         saveState();
         clearNotice();
         showNotice(`已完成上传并自动汇总：${fmt.format(rows.length)} 条有效记录，覆盖 ${new Set(rows.map((row) => row.date)).size} 个日期。${invalid ? ` 已跳过 ${fmt.format(invalid)} 行无效记录。` : ""}`, invalid ? "warn" : "");
@@ -512,6 +564,24 @@
         const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = "质检小时汇总.csv"; link.click(); URL.revokeObjectURL(link.href);
       }
 
+      async function createShareLink() {
+        if (!state.rows.length) { showNotice("当前没有可分享的数据。", "warn"); return; }
+        const summary = aggregate(state.rows);
+        const payload = {
+          v: 1,
+          threshold: state.threshold,
+          rows: [...summary.byPair.values()].map((row) => [row.date, row.reviewer, row.hours]),
+        };
+        const link = `${window.location.origin}${window.location.pathname}#share=${encodeSharePayload(payload)}`;
+        window.history.replaceState(null, "", link);
+        try {
+          await navigator.clipboard.writeText(link);
+          showNotice(`分享链接已复制：${fmt.format(summary.dates.size)} 个日期、${fmt.format(state.rows.length)} 条汇总数据。知道链接的人都可以查看。`, "warn");
+        } catch (error) {
+          window.prompt("请复制分享链接：", link);
+        }
+      }
+
       function downloadTemplate() {
         if (typeof XLSX === "undefined") { showNotice("解析组件未加载，请联网后刷新页面再试。", "error"); return; }
         const sheet = XLSX.utils.aoa_to_sheet([["一审质检人", "质检更新时间"], ["质检示例", "2026-08-29 08:15:00"]]);
@@ -525,13 +595,15 @@
       $("dropZone").addEventListener("drop", (event) => { event.preventDefault(); $("dropZone").classList.remove("is-dragging"); handleFile(event.dataTransfer.files[0]); });
       $("dateFilter").addEventListener("change", (event) => { state.dateFilter = event.target.value; render(); });
       $("thresholdInput").addEventListener("input", (event) => { const value = Math.min(90, Math.max(10, Number(event.target.value) || 30)); state.threshold = value / 100; event.target.value = value; saveState(); render(); });
-      $("loadDemo").addEventListener("click", () => { state.rows = demoRows(); state.fileName = "当前样例（预览）"; state.invalid = 0; state.isDemo = true; state.dateFilter = "all"; saveState(); showNotice("已加载当前样例，上传真实文件后会自动替换样例数据。", "warn"); render(); });
-      $("clearData").addEventListener("click", () => { state.rows = []; state.fileName = ""; state.invalid = 0; state.isDemo = false; state.dateFilter = "all"; localStorage.removeItem(STORAGE_KEY); clearNotice(); render(); });
+      $("loadDemo").addEventListener("click", () => { state.rows = demoRows(); state.fileName = "当前样例（预览）"; state.invalid = 0; state.isDemo = true; state.fromShare = false; state.dateFilter = "all"; clearShareHash(); saveState(); showNotice("已加载当前样例，上传真实文件后会自动替换样例数据。", "warn"); render(); });
+      $("clearData").addEventListener("click", () => { state.rows = []; state.fileName = ""; state.invalid = 0; state.isDemo = false; state.fromShare = false; state.dateFilter = "all"; clearShareHash(); localStorage.removeItem(STORAGE_KEY); clearNotice(); render(); });
       $("exportReport").addEventListener("click", exportReport);
       $("downloadTemplate").addEventListener("click", downloadTemplate);
+      $("createShareLink").addEventListener("click", createShareLink);
 
       loadState();
-      if (!state.rows.length) {
+      const sharedLoaded = loadSharedData();
+      if (!sharedLoaded && !state.rows.length) {
         state.rows = demoRows();
         state.fileName = "当前样例（预览）";
         state.isDemo = true;
