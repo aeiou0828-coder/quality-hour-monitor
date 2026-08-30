@@ -223,13 +223,15 @@
           <div class="stat-card"><div class="stat-label">有效质检量</div><div class="stat-value" id="kpiTotal">0</div><div class="stat-context" id="kpiTotalContext">等待上传</div></div>
           <div class="stat-card"><div class="stat-label">质检日期数</div><div class="stat-value" id="kpiDates">0</div><div class="stat-context">当前筛选范围</div></div>
           <div class="stat-card"><div class="stat-label">一审质检人数</div><div class="stat-value" id="kpiReviewers">0</div><div class="stat-context">按有效记录计算</div></div>
-          <div class="stat-card"><div class="stat-label">全员峰值小时</div><div class="stat-value" id="kpiPeak">--</div><div class="stat-context" id="kpiPeakContext">等待上传</div></div>
+          <div class="stat-card"><div class="stat-label">当前峰值小时</div><div class="stat-value" id="kpiPeak">--</div><div class="stat-context" id="kpiPeakContext">等待上传</div></div>
         </div>
 
         <div class="toolbar">
           <div class="toolbar-left">
             <label for="dateFilter">查看日期</label>
             <select class="form-select" id="dateFilter" aria-label="查看日期"><option value="all">全部日期</option></select>
+            <label for="reviewerFilter">指定人员</label>
+            <select class="form-select" id="reviewerFilter" aria-label="指定人员"><option value="all">全部人员</option></select>
             <span class="text-muted" id="filterSummary">全部日期</span>
           </div>
           <div class="toolbar-right">
@@ -277,7 +279,7 @@
   <script>
     (() => {
       const STORAGE_KEY = "quality-hour-monitor-v1";
-      const state = { rows: [], fileName: "", invalid: 0, threshold: 0.30, dateFilter: "all", isDemo: false, fromShare: false };
+      const state = { rows: [], fileName: "", invalid: 0, threshold: 0.30, dateFilter: "all", reviewerFilter: "all", isDemo: false, fromShare: false };
       const $ = (id) => document.getElementById(id);
       const fmt = new Intl.NumberFormat("zh-CN");
       const pad = (value) => String(value).padStart(2, "0");
@@ -330,6 +332,8 @@
           state.invalid = 0;
           state.isDemo = false;
           state.fromShare = true;
+          state.dateFilter = "all";
+          state.reviewerFilter = "all";
           if (Number.isFinite(Number(payload.threshold))) state.threshold = Math.min(.9, Math.max(.1, Number(payload.threshold)));
           $("thresholdInput").value = Math.round(state.threshold * 100);
           showNotice(`已载入分享数据：${fmt.format(rows.length)} 条汇总记录，分享者未提供原始明细。`, "warn");
@@ -396,16 +400,29 @@
       }
 
       function filteredRows() {
-        return state.dateFilter === "all" ? state.rows : state.rows.filter((row) => row.date === state.dateFilter);
+        return state.rows.filter((row) => {
+          const matchesDate = state.dateFilter === "all" || row.date === state.dateFilter;
+          const matchesReviewer = state.reviewerFilter === "all" || row.reviewer === state.reviewerFilter;
+          return matchesDate && matchesReviewer;
+        });
       }
 
       function renderSelectors(allSummary) {
-        const select = $("dateFilter");
-        const previous = state.dateFilter;
-        select.innerHTML = `<option value="all">全部日期</option>${[...allSummary.dates.keys()].sort().map((date) => `<option value="${esc(date)}">${esc(date)}</option>`).join("")}`;
-        state.dateFilter = [...allSummary.dates.keys()].includes(previous) || previous === "all" ? previous : "all";
-        select.value = state.dateFilter;
-        $("filterSummary").textContent = state.dateFilter === "all" ? `全部日期，共 ${allSummary.dates.size} 天` : state.dateFilter;
+        const dateSelect = $("dateFilter");
+        const reviewerSelect = $("reviewerFilter");
+        const previousDate = state.dateFilter;
+        const previousReviewer = state.reviewerFilter;
+        const dates = [...allSummary.dates.keys()].sort();
+        const reviewers = [...allSummary.reviewers].sort((a, b) => a.localeCompare(b, "zh-CN"));
+        dateSelect.innerHTML = `<option value="all">全部日期</option>${dates.map((date) => `<option value="${esc(date)}">${esc(date)}</option>`).join("")}`;
+        reviewerSelect.innerHTML = `<option value="all">全部人员</option>${reviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
+        state.dateFilter = dates.includes(previousDate) || previousDate === "all" ? previousDate : "all";
+        state.reviewerFilter = reviewers.includes(previousReviewer) || previousReviewer === "all" ? previousReviewer : "all";
+        dateSelect.value = state.dateFilter;
+        reviewerSelect.value = state.reviewerFilter;
+        const dateLabel = state.dateFilter === "all" ? `全部日期，共 ${allSummary.dates.size} 天` : state.dateFilter;
+        const reviewerLabel = state.reviewerFilter === "all" ? `全部人员，共 ${allSummary.reviewers.size} 人` : state.reviewerFilter;
+        $("filterSummary").textContent = `${dateLabel} · ${reviewerLabel}`;
       }
 
       function renderKpis(summary) {
@@ -417,7 +434,7 @@
         $("kpiReviewers").textContent = fmt.format(new Set(rows.map((row) => row.reviewer)).size);
         $("kpiPeak").textContent = rows.length ? hourLabel(globalPeak.hour) : "--";
         $("kpiTotalContext").textContent = state.fromShare ? "来自分享链接" : (state.isDemo ? "当前样例数据" : (state.fileName ? state.fileName : "等待上传"));
-        $("kpiPeakContext").textContent = rows.length ? `全员 ${fmt.format(globalPeak.value)} 条${peakDate ? ` · 最大日期 ${peakDate[0]}` : ""}` : "等待上传";
+        $("kpiPeakContext").textContent = rows.length ? `当前筛选 ${fmt.format(globalPeak.value)} 条${peakDate ? ` · 最大日期 ${peakDate[0]}` : ""}` : "等待上传";
         $("dataStatus").textContent = rows.length ? `${state.fromShare ? "分享链接数据" : (state.isDemo ? "当前样例" : state.fileName)} · ${fmt.format(rows.length)} 条有效记录` : "等待上传质检记录";
       }
 
@@ -513,6 +530,7 @@
         state.isDemo = false;
         state.fromShare = false;
         state.dateFilter = "all";
+        state.reviewerFilter = "all";
         clearShareHash();
         saveState();
         clearNotice();
@@ -594,9 +612,10 @@
       $("dropZone").addEventListener("dragleave", () => $("dropZone").classList.remove("is-dragging"));
       $("dropZone").addEventListener("drop", (event) => { event.preventDefault(); $("dropZone").classList.remove("is-dragging"); handleFile(event.dataTransfer.files[0]); });
       $("dateFilter").addEventListener("change", (event) => { state.dateFilter = event.target.value; render(); });
+      $("reviewerFilter").addEventListener("change", (event) => { state.reviewerFilter = event.target.value; render(); });
       $("thresholdInput").addEventListener("input", (event) => { const value = Math.min(90, Math.max(10, Number(event.target.value) || 30)); state.threshold = value / 100; event.target.value = value; saveState(); render(); });
-      $("loadDemo").addEventListener("click", () => { state.rows = demoRows(); state.fileName = "当前样例（预览）"; state.invalid = 0; state.isDemo = true; state.fromShare = false; state.dateFilter = "all"; clearShareHash(); saveState(); showNotice("已加载当前样例，上传真实文件后会自动替换样例数据。", "warn"); render(); });
-      $("clearData").addEventListener("click", () => { state.rows = []; state.fileName = ""; state.invalid = 0; state.isDemo = false; state.fromShare = false; state.dateFilter = "all"; clearShareHash(); localStorage.removeItem(STORAGE_KEY); clearNotice(); render(); });
+      $("loadDemo").addEventListener("click", () => { state.rows = demoRows(); state.fileName = "当前样例（预览）"; state.invalid = 0; state.isDemo = true; state.fromShare = false; state.dateFilter = "all"; state.reviewerFilter = "all"; clearShareHash(); saveState(); showNotice("已加载当前样例，上传真实文件后会自动替换样例数据。", "warn"); render(); });
+      $("clearData").addEventListener("click", () => { state.rows = []; state.fileName = ""; state.invalid = 0; state.isDemo = false; state.fromShare = false; state.dateFilter = "all"; state.reviewerFilter = "all"; clearShareHash(); localStorage.removeItem(STORAGE_KEY); clearNotice(); render(); });
       $("exportReport").addEventListener("click", exportReport);
       $("downloadTemplate").addEventListener("click", downloadTemplate);
       $("createShareLink").addEventListener("click", createShareLink);
