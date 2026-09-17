@@ -231,10 +231,8 @@
           <div class="toolbar-left">
             <label for="dateFilter">查看日期</label>
             <select class="form-select" id="dateFilter" aria-label="查看日期"><option value="all">全部日期</option></select>
-            <label for="firstReviewerFilter">一审人员</label>
-            <select class="form-select" id="firstReviewerFilter" aria-label="一审人员"><option value="all">全部一审人员</option></select>
-            <label for="secondReviewerFilter">二审审查人</label>
-            <select class="form-select" id="secondReviewerFilter" aria-label="二审审查人"><option value="all">全部二审审查人（含无）</option></select>
+            <label for="personFilter">指定人员</label>
+            <select class="form-select" id="personFilter" aria-label="指定人员"><option value="all">全部人员（含无）</option></select>
             <span class="text-muted" id="filterSummary">全部日期</span>
           </div>
           <div class="toolbar-right">
@@ -281,8 +279,8 @@
 
   <script>
     (() => {
-      const STORAGE_KEY = "quality-hour-monitor-v2";
-      const state = { rows: [], fileName: "", invalid: 0, threshold: 0.30, dateFilter: "all", firstReviewerFilter: "all", secondReviewerFilter: "all", isDemo: false, fromShare: false };
+      const STORAGE_KEY = "quality-hour-monitor-v3";
+      const state = { rows: [], fileName: "", invalid: 0, threshold: 0.30, dateFilter: "all", personFilter: "all", isDemo: false, fromShare: false };
       const $ = (id) => document.getElementById(id);
       const fmt = new Intl.NumberFormat("zh-CN");
       const pad = (value) => String(value).padStart(2, "0");
@@ -336,8 +334,7 @@
           state.isDemo = false;
           state.fromShare = true;
           state.dateFilter = "all";
-          state.firstReviewerFilter = "all";
-          state.secondReviewerFilter = "all";
+          state.personFilter = "all";
           if (Number.isFinite(Number(payload.threshold))) state.threshold = Math.min(.9, Math.max(.1, Number(payload.threshold)));
           $("thresholdInput").value = Math.round(state.threshold * 100);
           showNotice(`已载入分享数据：${fmt.format(rows.length)} 条汇总记录，分享者未提供原始明细。`, "warn");
@@ -409,35 +406,27 @@
       function filteredRows() {
         return state.rows.filter((row) => {
           const matchesDate = state.dateFilter === "all" || row.date === state.dateFilter;
-          const matchesFirstReviewer = state.firstReviewerFilter === "all" || row.firstReviewer === state.firstReviewerFilter;
-          const matchesSecondReviewer = state.secondReviewerFilter === "all" || row.secondReviewer === state.secondReviewerFilter;
-          return matchesDate && matchesFirstReviewer && matchesSecondReviewer;
+          const matchesPerson = state.personFilter === "all" || row.firstReviewer === state.personFilter || row.secondReviewer === state.personFilter;
+          return matchesDate && matchesPerson;
         });
       }
 
       function renderSelectors(allSummary) {
         const dateSelect = $("dateFilter");
-        const firstReviewerSelect = $("firstReviewerFilter");
-        const secondReviewerSelect = $("secondReviewerFilter");
+        const personSelect = $("personFilter");
         const previousDate = state.dateFilter;
-        const previousFirstReviewer = state.firstReviewerFilter;
-        const previousSecondReviewer = state.secondReviewerFilter;
+        const previousPerson = state.personFilter;
         const dates = [...allSummary.dates.keys()].sort();
-        const firstReviewers = [...allSummary.firstReviewers].sort((a, b) => a.localeCompare(b, "zh-CN"));
-        const secondReviewers = ["无", ...[...allSummary.secondReviewers].filter((reviewer) => reviewer !== "无").sort((a, b) => a.localeCompare(b, "zh-CN"))];
+        const people = ["无", ...[...new Set([...allSummary.firstReviewers, ...allSummary.secondReviewers])].filter((person) => person !== "无").sort((a, b) => a.localeCompare(b, "zh-CN"))];
         dateSelect.innerHTML = `<option value="all">全部日期</option>${dates.map((date) => `<option value="${esc(date)}">${esc(date)}</option>`).join("")}`;
-        firstReviewerSelect.innerHTML = `<option value="all">全部一审人员</option>${firstReviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
-        secondReviewerSelect.innerHTML = `<option value="all">全部二审审查人（含无）</option>${secondReviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
+        personSelect.innerHTML = `<option value="all">全部人员（含无）</option>${people.map((person) => `<option value="${esc(person)}">${esc(person)}</option>`).join("")}`;
         state.dateFilter = dates.includes(previousDate) || previousDate === "all" ? previousDate : "all";
-        state.firstReviewerFilter = firstReviewers.includes(previousFirstReviewer) || previousFirstReviewer === "all" ? previousFirstReviewer : "all";
-        state.secondReviewerFilter = secondReviewers.includes(previousSecondReviewer) || previousSecondReviewer === "all" ? previousSecondReviewer : "all";
+        state.personFilter = people.includes(previousPerson) || previousPerson === "all" ? previousPerson : "all";
         dateSelect.value = state.dateFilter;
-        firstReviewerSelect.value = state.firstReviewerFilter;
-        secondReviewerSelect.value = state.secondReviewerFilter;
+        personSelect.value = state.personFilter;
         const dateLabel = state.dateFilter === "all" ? `全部日期，共 ${allSummary.dates.size} 天` : state.dateFilter;
-        const firstReviewerLabel = state.firstReviewerFilter === "all" ? `全部一审，共 ${allSummary.firstReviewers.size} 人` : state.firstReviewerFilter;
-        const secondReviewerLabel = state.secondReviewerFilter === "all" ? `全部二审（含无），共 ${allSummary.secondReviewers.size} 类` : state.secondReviewerFilter;
-        $("filterSummary").textContent = `${dateLabel} · ${firstReviewerLabel} · ${secondReviewerLabel}`;
+        const personLabel = state.personFilter === "all" ? `全部人员，共 ${people.length} 类` : `指定人员：${state.personFilter}`;
+        $("filterSummary").textContent = `${dateLabel} · ${personLabel}`;
       }
 
       function renderKpis(summary) {
@@ -548,8 +537,7 @@
         state.isDemo = false;
         state.fromShare = false;
         state.dateFilter = "all";
-        state.firstReviewerFilter = "all";
-        state.secondReviewerFilter = "all";
+        state.personFilter = "all";
         clearShareHash();
         saveState();
         clearNotice();
@@ -632,11 +620,10 @@
       $("dropZone").addEventListener("dragleave", () => $("dropZone").classList.remove("is-dragging"));
       $("dropZone").addEventListener("drop", (event) => { event.preventDefault(); $("dropZone").classList.remove("is-dragging"); handleFile(event.dataTransfer.files[0]); });
       $("dateFilter").addEventListener("change", (event) => { state.dateFilter = event.target.value; render(); });
-      $("firstReviewerFilter").addEventListener("change", (event) => { state.firstReviewerFilter = event.target.value; render(); });
-      $("secondReviewerFilter").addEventListener("change", (event) => { state.secondReviewerFilter = event.target.value; render(); });
+      $("personFilter").addEventListener("change", (event) => { state.personFilter = event.target.value; render(); });
       $("thresholdInput").addEventListener("input", (event) => { const value = Math.min(90, Math.max(10, Number(event.target.value) || 30)); state.threshold = value / 100; event.target.value = value; saveState(); render(); });
-      $("loadDemo").addEventListener("click", () => { state.rows = demoRows(); state.fileName = "当前样例（预览）"; state.invalid = 0; state.isDemo = true; state.fromShare = false; state.dateFilter = "all"; state.firstReviewerFilter = "all"; state.secondReviewerFilter = "all"; clearShareHash(); saveState(); showNotice("已加载当前样例，上传真实文件后会自动替换样例数据。", "warn"); render(); });
-      $("clearData").addEventListener("click", () => { state.rows = []; state.fileName = ""; state.invalid = 0; state.isDemo = false; state.fromShare = false; state.dateFilter = "all"; state.firstReviewerFilter = "all"; state.secondReviewerFilter = "all"; clearShareHash(); localStorage.removeItem(STORAGE_KEY); clearNotice(); render(); });
+      $("loadDemo").addEventListener("click", () => { state.rows = demoRows(); state.fileName = "当前样例（预览）"; state.invalid = 0; state.isDemo = true; state.fromShare = false; state.dateFilter = "all"; state.personFilter = "all"; clearShareHash(); saveState(); showNotice("已加载当前样例，上传真实文件后会自动替换样例数据。", "warn"); render(); });
+      $("clearData").addEventListener("click", () => { state.rows = []; state.fileName = ""; state.invalid = 0; state.isDemo = false; state.fromShare = false; state.dateFilter = "all"; state.personFilter = "all"; clearShareHash(); localStorage.removeItem(STORAGE_KEY); clearNotice(); render(); });
       $("exportReport").addEventListener("click", exportReport);
       $("downloadTemplate").addEventListener("click", downloadTemplate);
       $("createShareLink").addEventListener("click", createShareLink);
