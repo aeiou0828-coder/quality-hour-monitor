@@ -183,7 +183,7 @@
             <span>.xlsx / .xls / .csv</span>
             <input class="file-input" id="fileInput" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
           </label>
-          <div class="file-meta" id="fileMeta">必填字段：一审质检人、质检更新时间</div>
+          <div class="file-meta" id="fileMeta">必填字段：一审质检人、二审质检人、质检更新时间</div>
           <div class="upload-actions">
             <button class="btn btn-primary" id="loadDemo" type="button">加载当前样例</button>
             <button class="btn" id="clearData" type="button">清空当前数据</button>
@@ -193,7 +193,7 @@
         <section class="panel">
           <h3>上传口径</h3>
           <ul class="rule-list">
-            <li><span>质检人取 <code>一审质检人</code>，空值记录跳过。</span></li>
+            <li><span>质检人同时取 <code>一审质检人</code> 与 <code>二审质检人</code>，任一为空的记录跳过。</span></li>
             <li><span>时间取 <code>质检更新时间</code>，无法解析的记录跳过。</span></li>
             <li><span>日期按更新时间所在日期归属，小时按更新时间的 00–23 点归属。</span></li>
             <li><span>每条有效记录计为 1 个质检对话；跨日对话按质检更新时间统计。</span></li>
@@ -208,7 +208,7 @@
 
         <section class="panel">
           <h3>集中度预警</h3>
-          <p class="panel-subtitle">某质检人当天最高小时量 ÷ 当天总量达到阈值时标记。</p>
+          <p class="panel-subtitle">某一审、二审组合当天最高小时量 ÷ 该组合当天总量达到阈值时标记。</p>
           <div class="threshold-wrap" style="margin-top:13px">
             <label for="thresholdInput">预警阈值</label>
             <input class="form-control threshold-input" id="thresholdInput" type="number" min="10" max="90" step="5" value="30" aria-label="集中度预警阈值百分比">
@@ -222,7 +222,8 @@
         <div class="kpi-grid">
           <div class="stat-card"><div class="stat-label">有效质检量</div><div class="stat-value" id="kpiTotal">0</div><div class="stat-context" id="kpiTotalContext">等待上传</div></div>
           <div class="stat-card"><div class="stat-label">质检日期数</div><div class="stat-value" id="kpiDates">0</div><div class="stat-context">当前筛选范围</div></div>
-          <div class="stat-card"><div class="stat-label">一审质检人数</div><div class="stat-value" id="kpiReviewers">0</div><div class="stat-context">按有效记录计算</div></div>
+          <div class="stat-card"><div class="stat-label">一审质检人数</div><div class="stat-value" id="kpiFirstReviewers">0</div><div class="stat-context">按有效记录计算</div></div>
+          <div class="stat-card"><div class="stat-label">二审质检人数</div><div class="stat-value" id="kpiSecondReviewers">0</div><div class="stat-context">按有效记录计算</div></div>
           <div class="stat-card"><div class="stat-label">当前峰值小时</div><div class="stat-value" id="kpiPeak">--</div><div class="stat-context" id="kpiPeakContext">等待上传</div></div>
         </div>
 
@@ -230,8 +231,10 @@
           <div class="toolbar-left">
             <label for="dateFilter">查看日期</label>
             <select class="form-select" id="dateFilter" aria-label="查看日期"><option value="all">全部日期</option></select>
-            <label for="reviewerFilter">指定人员</label>
-            <select class="form-select" id="reviewerFilter" aria-label="指定人员"><option value="all">全部人员</option></select>
+            <label for="firstReviewerFilter">一审人员</label>
+            <select class="form-select" id="firstReviewerFilter" aria-label="一审人员"><option value="all">全部一审人员</option></select>
+            <label for="secondReviewerFilter">二审人员</label>
+            <select class="form-select" id="secondReviewerFilter" aria-label="二审人员"><option value="all">全部二审人员</option></select>
             <span class="text-muted" id="filterSummary">全部日期</span>
           </div>
           <div class="toolbar-right">
@@ -243,7 +246,7 @@
           <div class="section-header">
             <div class="section-title-wrap">
               <h2>全日期总览</h2>
-              <p>一行一个日期，快速查看当天总量、峰值时段和集中度预警人数。</p>
+          <p>一行一个日期，快速查看当天总量、峰值时段和集中度预警组合数。</p>
             </div>
           </div>
           <div class="table-wrap" id="dailyWrap">
@@ -254,8 +257,8 @@
         <section class="section">
           <div class="section-header">
             <div class="section-title-wrap">
-              <h2>日期 × 一审质检人 × 小时</h2>
-              <p>每个单元格为该质检人在该日期、该小时完成的质检对话数；红色表示该行的高峰小时。</p>
+              <h2>日期 × 一审质检人 × 二审质检人 × 小时</h2>
+              <p>每个单元格为该一审、二审组合在该日期、该小时完成的质检对话数；红色表示该行的高峰小时。</p>
             </div>
           </div>
           <div class="table-wrap" id="hourWrap">
@@ -271,15 +274,15 @@
           </div>
         </section>
 
-        <div class="footer-note" id="footerNote">统计口径固定为：一审质检人 + 质检更新时间。上传后可用“导出当前汇总”下载当前筛选范围的 CSV。</div>
+        <div class="footer-note" id="footerNote">统计口径固定为：一审质检人 + 二审质检人 + 质检更新时间。上传后可用“导出当前汇总”下载当前筛选范围的 CSV。</div>
       </section>
     </main>
   </div>
 
   <script>
     (() => {
-      const STORAGE_KEY = "quality-hour-monitor-v1";
-      const state = { rows: [], fileName: "", invalid: 0, threshold: 0.30, dateFilter: "all", reviewerFilter: "all", isDemo: false, fromShare: false };
+      const STORAGE_KEY = "quality-hour-monitor-v2";
+      const state = { rows: [], fileName: "", invalid: 0, threshold: 0.30, dateFilter: "all", firstReviewerFilter: "all", secondReviewerFilter: "all", isDemo: false, fromShare: false };
       const $ = (id) => document.getElementById(id);
       const fmt = new Intl.NumberFormat("zh-CN");
       const pad = (value) => String(value).padStart(2, "0");
@@ -320,11 +323,11 @@
         if (!window.location.hash.startsWith("#share=")) return false;
         try {
           const payload = decodeSharePayload(window.location.hash.slice(7));
-          if (!payload || payload.v !== 1 || !Array.isArray(payload.rows)) throw new Error("分享链接内容无效。");
+          if (!payload || payload.v !== 2 || !Array.isArray(payload.rows)) throw new Error("分享链接内容无效或使用了旧版统计口径。");
           const rows = payload.rows.flatMap((item) => {
-            const [date, reviewer, hours] = item;
-            if (!date || !reviewer || !Array.isArray(hours) || hours.length !== 24) return [];
-            return hours.flatMap((count, hour) => Array.from({ length: Math.max(0, Number(count) || 0) }, () => ({ date, hour, reviewer })));
+            const [date, firstReviewer, secondReviewer, hours] = item;
+            if (!date || !firstReviewer || !secondReviewer || !Array.isArray(hours) || hours.length !== 24) return [];
+            return hours.flatMap((count, hour) => Array.from({ length: Math.max(0, Number(count) || 0) }, () => ({ date, hour, firstReviewer, secondReviewer })));
           });
           if (!rows.length) throw new Error("分享链接中没有有效汇总数据。");
           state.rows = rows;
@@ -333,7 +336,8 @@
           state.isDemo = false;
           state.fromShare = true;
           state.dateFilter = "all";
-          state.reviewerFilter = "all";
+          state.firstReviewerFilter = "all";
+          state.secondReviewerFilter = "all";
           if (Number.isFinite(Number(payload.threshold))) state.threshold = Math.min(.9, Math.max(.1, Number(payload.threshold)));
           $("thresholdInput").value = Math.round(state.threshold * 100);
           showNotice(`已载入分享数据：${fmt.format(rows.length)} 条汇总记录，分享者未提供原始明细。`, "warn");
@@ -361,23 +365,26 @@
 
       function aggregate(rows) {
         const dates = new Map();
-        const reviewers = new Set();
+        const firstReviewers = new Set();
+        const secondReviewers = new Set();
         const byPair = new Map();
         const globalHours = Array(24).fill(0);
         for (const row of rows) {
-          reviewers.add(row.reviewer);
+          firstReviewers.add(row.firstReviewer);
+          secondReviewers.add(row.secondReviewer);
           globalHours[row.hour] += 1;
           if (!dates.has(row.date)) dates.set(row.date, { total: 0, hours: Array(24).fill(0), reviewers: new Map() });
           const dateItem = dates.get(row.date);
           dateItem.total += 1;
           dateItem.hours[row.hour] += 1;
-          if (!dateItem.reviewers.has(row.reviewer)) dateItem.reviewers.set(row.reviewer, { total: 0, hours: Array(24).fill(0) });
-          const person = dateItem.reviewers.get(row.reviewer);
+          const reviewerPair = `${row.firstReviewer}\u0000${row.secondReviewer}`;
+          if (!dateItem.reviewers.has(reviewerPair)) dateItem.reviewers.set(reviewerPair, { firstReviewer: row.firstReviewer, secondReviewer: row.secondReviewer, total: 0, hours: Array(24).fill(0) });
+          const person = dateItem.reviewers.get(reviewerPair);
           person.total += 1;
           person.hours[row.hour] += 1;
-          byPair.set(`${row.date}\u0000${row.reviewer}`, { date: row.date, reviewer: row.reviewer, total: person.total, hours: person.hours });
+          byPair.set(`${row.date}\u0000${reviewerPair}`, { date: row.date, firstReviewer: row.firstReviewer, secondReviewer: row.secondReviewer, total: person.total, hours: person.hours });
         }
-        return { dates, reviewers, byPair, globalHours };
+        return { dates, firstReviewers, secondReviewers, byPair, globalHours };
       }
 
       function peak(hours) {
@@ -396,33 +403,41 @@
       }
 
       function pairRows(summary) {
-        return [...summary.byPair.values()].sort((a, b) => a.date.localeCompare(b.date) || b.total - a.total || a.reviewer.localeCompare(b.reviewer, "zh-CN"));
+        return [...summary.byPair.values()].sort((a, b) => a.date.localeCompare(b.date) || b.total - a.total || a.firstReviewer.localeCompare(b.firstReviewer, "zh-CN") || a.secondReviewer.localeCompare(b.secondReviewer, "zh-CN"));
       }
 
       function filteredRows() {
         return state.rows.filter((row) => {
           const matchesDate = state.dateFilter === "all" || row.date === state.dateFilter;
-          const matchesReviewer = state.reviewerFilter === "all" || row.reviewer === state.reviewerFilter;
-          return matchesDate && matchesReviewer;
+          const matchesFirstReviewer = state.firstReviewerFilter === "all" || row.firstReviewer === state.firstReviewerFilter;
+          const matchesSecondReviewer = state.secondReviewerFilter === "all" || row.secondReviewer === state.secondReviewerFilter;
+          return matchesDate && matchesFirstReviewer && matchesSecondReviewer;
         });
       }
 
       function renderSelectors(allSummary) {
         const dateSelect = $("dateFilter");
-        const reviewerSelect = $("reviewerFilter");
+        const firstReviewerSelect = $("firstReviewerFilter");
+        const secondReviewerSelect = $("secondReviewerFilter");
         const previousDate = state.dateFilter;
-        const previousReviewer = state.reviewerFilter;
+        const previousFirstReviewer = state.firstReviewerFilter;
+        const previousSecondReviewer = state.secondReviewerFilter;
         const dates = [...allSummary.dates.keys()].sort();
-        const reviewers = [...allSummary.reviewers].sort((a, b) => a.localeCompare(b, "zh-CN"));
+        const firstReviewers = [...allSummary.firstReviewers].sort((a, b) => a.localeCompare(b, "zh-CN"));
+        const secondReviewers = [...allSummary.secondReviewers].sort((a, b) => a.localeCompare(b, "zh-CN"));
         dateSelect.innerHTML = `<option value="all">全部日期</option>${dates.map((date) => `<option value="${esc(date)}">${esc(date)}</option>`).join("")}`;
-        reviewerSelect.innerHTML = `<option value="all">全部人员</option>${reviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
+        firstReviewerSelect.innerHTML = `<option value="all">全部一审人员</option>${firstReviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
+        secondReviewerSelect.innerHTML = `<option value="all">全部二审人员</option>${secondReviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
         state.dateFilter = dates.includes(previousDate) || previousDate === "all" ? previousDate : "all";
-        state.reviewerFilter = reviewers.includes(previousReviewer) || previousReviewer === "all" ? previousReviewer : "all";
+        state.firstReviewerFilter = firstReviewers.includes(previousFirstReviewer) || previousFirstReviewer === "all" ? previousFirstReviewer : "all";
+        state.secondReviewerFilter = secondReviewers.includes(previousSecondReviewer) || previousSecondReviewer === "all" ? previousSecondReviewer : "all";
         dateSelect.value = state.dateFilter;
-        reviewerSelect.value = state.reviewerFilter;
+        firstReviewerSelect.value = state.firstReviewerFilter;
+        secondReviewerSelect.value = state.secondReviewerFilter;
         const dateLabel = state.dateFilter === "all" ? `全部日期，共 ${allSummary.dates.size} 天` : state.dateFilter;
-        const reviewerLabel = state.reviewerFilter === "all" ? `全部人员，共 ${allSummary.reviewers.size} 人` : state.reviewerFilter;
-        $("filterSummary").textContent = `${dateLabel} · ${reviewerLabel}`;
+        const firstReviewerLabel = state.firstReviewerFilter === "all" ? `全部一审，共 ${allSummary.firstReviewers.size} 人` : state.firstReviewerFilter;
+        const secondReviewerLabel = state.secondReviewerFilter === "all" ? `全部二审，共 ${allSummary.secondReviewers.size} 人` : state.secondReviewerFilter;
+        $("filterSummary").textContent = `${dateLabel} · ${firstReviewerLabel} · ${secondReviewerLabel}`;
       }
 
       function renderKpis(summary) {
@@ -431,7 +446,8 @@
         const peakDate = [...summary.dates.entries()].sort((a, b) => b[1].total - a[1].total)[0];
         $("kpiTotal").textContent = fmt.format(rows.length);
         $("kpiDates").textContent = fmt.format(new Set(rows.map((row) => row.date)).size);
-        $("kpiReviewers").textContent = fmt.format(new Set(rows.map((row) => row.reviewer)).size);
+        $("kpiFirstReviewers").textContent = fmt.format(new Set(rows.map((row) => row.firstReviewer)).size);
+        $("kpiSecondReviewers").textContent = fmt.format(new Set(rows.map((row) => row.secondReviewer)).size);
         $("kpiPeak").textContent = rows.length ? hourLabel(globalPeak.hour) : "--";
         $("kpiTotalContext").textContent = state.fromShare ? "来自分享链接" : (state.isDemo ? "当前样例数据" : (state.fileName ? state.fileName : "等待上传"));
         $("kpiPeakContext").textContent = rows.length ? `当前筛选 ${fmt.format(globalPeak.value)} 条${peakDate ? ` · 最大日期 ${peakDate[0]}` : ""}` : "等待上传";
@@ -447,11 +463,11 @@
         const body = rows.map(([date, item]) => {
           const people = [...item.reviewers.entries()];
           const datePeak = peak(item.hours);
-          const flagged = people.filter(([, person]) => person.total > 0 && Math.max(...person.hours) / person.total >= state.threshold).map(([name]) => name);
+          const flagged = people.filter(([, person]) => person.total > 0 && Math.max(...person.hours) / person.total >= state.threshold).map(([, person]) => `${person.firstReviewer} / ${person.secondReviewer}`);
           const ratio = item.total ? Math.max(...item.hours) / item.total : 0;
-          return `<tr><td>${esc(date)}</td><td class="num">${fmt.format(item.total)}</td><td class="num">${fmt.format(people.length)}</td><td class="center">${hourLabel(datePeak.hour)}</td><td class="num">${fmt.format(datePeak.value)}</td><td class="num">${(ratio * 100).toFixed(1)}%</td><td>${flagged.length ? `<span class="badge badge-danger">${fmt.format(flagged.length)} 人 · ${esc(flagged.join("、"))}</span>` : `<span class="badge badge-ok">正常</span>`}</td><td>${barStrip(item.hours)}</td></tr>`;
+          return `<tr><td>${esc(date)}</td><td class="num">${fmt.format(item.total)}</td><td class="num">${fmt.format(people.length)}</td><td class="center">${hourLabel(datePeak.hour)}</td><td class="num">${fmt.format(datePeak.value)}</td><td class="num">${(ratio * 100).toFixed(1)}%</td><td>${flagged.length ? `<span class="badge badge-danger">${fmt.format(flagged.length)} 组 · ${esc(flagged.join("、"))}</span>` : `<span class="badge badge-ok">正常</span>`}</td><td>${barStrip(item.hours)}</td></tr>`;
         }).join("");
-        $("dailyWrap").innerHTML = `<table class="daily-table"><thead><tr><th>日期</th><th class="num">当天总量</th><th class="num">质检人数</th><th class="center">峰值小时</th><th class="num">峰值量</th><th class="num">峰值占比</th><th>集中度预警</th><th>24小时分布</th></tr></thead><tbody>${body}</tbody></table>`;
+        $("dailyWrap").innerHTML = `<table class="daily-table"><thead><tr><th>日期</th><th class="num">当天总量</th><th class="num">质检组合数</th><th class="center">峰值小时</th><th class="num">峰值量</th><th class="num">峰值占比</th><th>集中度预警</th><th>24小时分布</th></tr></thead><tbody>${body}</tbody></table>`;
       }
 
       function heatClass(value, max) {
@@ -473,10 +489,10 @@
           const maxHour = row.hours.indexOf(max);
           const ratio = row.total ? max / row.total : 0;
           const flagged = ratio >= state.threshold;
-          const cells = row.hours.map((value, hour) => `<td class="hour-cell ${heatClass(value, max)}" title="${esc(row.date)} · ${esc(row.reviewer)} · ${hourLabel(hour)}：${fmt.format(value)} 条">${fmt.format(value)}</td>`).join("");
-          return `<tr><td>${esc(row.date)}</td><td>${esc(row.reviewer)}</td><td class="num">${fmt.format(row.total)}</td>${cells}<td class="center">${hourLabel(maxHour)}</td><td class="num">${(ratio * 100).toFixed(1)}%</td><td class="center">${flagged ? `<span class="badge badge-danger">集中度较高</span>` : `<span class="badge badge-ok">正常</span>`}</td></tr>`;
+          const cells = row.hours.map((value, hour) => `<td class="hour-cell ${heatClass(value, max)}" title="${esc(row.date)} · 一审：${esc(row.firstReviewer)} · 二审：${esc(row.secondReviewer)} · ${hourLabel(hour)}：${fmt.format(value)} 条">${fmt.format(value)}</td>`).join("");
+          return `<tr><td>${esc(row.date)}</td><td>${esc(row.firstReviewer)}</td><td>${esc(row.secondReviewer)}</td><td class="num">${fmt.format(row.total)}</td>${cells}<td class="center">${hourLabel(maxHour)}</td><td class="num">${(ratio * 100).toFixed(1)}%</td><td class="center">${flagged ? `<span class="badge badge-danger">集中度较高</span>` : `<span class="badge badge-ok">正常</span>`}</td></tr>`;
         }).join("");
-        $("hourWrap").innerHTML = `<table class="hour-table"><thead><tr><th>日期</th><th>一审质检人</th><th class="num">总量</th>${head}<th class="center">最高小时</th><th class="num">最高小时占比</th><th class="center">判断</th></tr></thead><tbody>${body}</tbody></table>`;
+        $("hourWrap").innerHTML = `<table class="hour-table"><thead><tr><th>日期</th><th>一审质检人</th><th>二审质检人</th><th class="num">总量</th>${head}<th class="center">最高小时</th><th class="num">最高小时占比</th><th class="center">判断</th></tr></thead><tbody>${body}</tbody></table>`;
       }
 
       function render() {
@@ -486,7 +502,7 @@
         renderKpis(summary);
         renderDaily(summary);
         renderHours(summary);
-        $("footerNote").textContent = state.rows.length ? `统计口径固定为：一审质检人 + 质检更新时间。${state.invalid ? ` 本次上传跳过 ${fmt.format(state.invalid)} 行无效记录。` : " 本次上传没有跳过记录。"} 可调整左侧阈值，预警会自动更新。` : "统计口径固定为：一审质检人 + 质检更新时间。上传后可用“导出当前汇总”下载当前筛选范围的 CSV。";
+        $("footerNote").textContent = state.rows.length ? `统计口径固定为：一审质检人 + 二审质检人 + 质检更新时间。${state.invalid ? ` 本次上传跳过 ${fmt.format(state.invalid)} 行无效记录。` : " 本次上传没有跳过记录。"} 可调整左侧阈值，预警会自动更新。` : "统计口径固定为：一审质检人 + 二审质检人 + 质检更新时间。上传后可用“导出当前汇总”下载当前筛选范围的 CSV。";
       }
 
       function saveState() {
@@ -510,27 +526,30 @@
       function processMatrix(matrix, fileName) {
         if (!matrix.length) throw new Error("文件没有可读取的数据。");
         const headers = matrix[0].map((value) => String(value ?? "").trim());
-        const reviewerIndex = headers.indexOf("一审质检人");
+        const firstReviewerIndex = headers.indexOf("一审质检人");
+        const secondReviewerIndex = headers.indexOf("二审质检人");
         const timeIndex = headers.indexOf("质检更新时间");
-        if (reviewerIndex < 0 || timeIndex < 0) throw new Error("缺少必填字段。请确认表头包含“一审质检人”和“质检更新时间”。");
+        if (firstReviewerIndex < 0 || secondReviewerIndex < 0 || timeIndex < 0) throw new Error("缺少必填字段。请确认表头包含“一审质检人”、“二审质检人”和“质检更新时间”。");
         const rows = [];
         let invalid = 0;
         for (let index = 1; index < matrix.length; index += 1) {
           const source = matrix[index] || [];
           if (!source.some((value) => value !== null && value !== undefined && value !== "")) continue;
-          const reviewer = String(source[reviewerIndex] ?? "").trim();
+          const firstReviewer = String(source[firstReviewerIndex] ?? "").trim();
+          const secondReviewer = String(source[secondReviewerIndex] ?? "").trim();
           const parts = parseTimestamp(source[timeIndex]);
-          if (!reviewer || !parts || parts.month < 1 || parts.month > 12 || parts.day < 1 || parts.day > 31 || parts.hour < 0 || parts.hour > 23) { invalid += 1; continue; }
-          rows.push({ date: `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`, hour: parts.hour, reviewer });
+          if (!firstReviewer || !secondReviewer || !parts || parts.month < 1 || parts.month > 12 || parts.day < 1 || parts.day > 31 || parts.hour < 0 || parts.hour > 23) { invalid += 1; continue; }
+          rows.push({ date: `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`, hour: parts.hour, firstReviewer, secondReviewer });
         }
-        if (!rows.length) throw new Error("没有找到同时包含有效一审质检人和质检更新时间的记录。");
+        if (!rows.length) throw new Error("没有找到同时包含有效一审质检人、二审质检人和质检更新时间的记录。");
         state.rows = rows;
         state.fileName = fileName;
         state.invalid = invalid;
         state.isDemo = false;
         state.fromShare = false;
         state.dateFilter = "all";
-        state.reviewerFilter = "all";
+        state.firstReviewerFilter = "all";
+        state.secondReviewerFilter = "all";
         clearShareHash();
         saveState();
         clearNotice();
@@ -566,16 +585,17 @@
           "质检【Roro】": [10,27,6,23,17,18,85,14,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
           "质检【hali】": [8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,10,5,12,14,6,2,0,8]
         };
-        return Object.entries(data).flatMap(([reviewer, hours]) => hours.flatMap((count, hour) => Array.from({ length: count }, () => ({ date: "2026-08-29", hour, reviewer }))));
+        const secondReviewers = ["复审【Mia】", "复审【Nina】", "复审【Owen】"];
+        return Object.entries(data).flatMap(([firstReviewer, hours], reviewerIndex) => hours.flatMap((count, hour) => Array.from({ length: count }, () => ({ date: "2026-08-29", hour, firstReviewer, secondReviewer: secondReviewers[(reviewerIndex + hour) % secondReviewers.length] }))));
       }
 
       function exportReport() {
         const rows = pairRows(aggregate(filteredRows()));
         if (!rows.length) { showNotice("当前没有可导出的汇总数据。", "warn"); return; }
-        const headers = ["日期", "一审质检人", "质检总量", ...Array.from({ length: 24 }, (_, hour) => hourLabel(hour)), "单小时最高量", "最高小时", "最高小时占比", "集中度判断"];
+        const headers = ["日期", "一审质检人", "二审质检人", "质检总量", ...Array.from({ length: 24 }, (_, hour) => hourLabel(hour)), "单小时最高量", "最高小时", "最高小时占比", "集中度判断"];
         const data = rows.map((row) => {
           const max = Math.max(...row.hours); const maxHour = row.hours.indexOf(max); const ratio = row.total ? max / row.total : 0;
-          return [row.date, row.reviewer, row.total, ...row.hours, max, hourLabel(maxHour), `${(ratio * 100).toFixed(1)}%`, ratio >= state.threshold ? "集中度较高" : "正常"];
+          return [row.date, row.firstReviewer, row.secondReviewer, row.total, ...row.hours, max, hourLabel(maxHour), `${(ratio * 100).toFixed(1)}%`, ratio >= state.threshold ? "集中度较高" : "正常"];
         });
         const csv = [headers, ...data].map((line) => line.map((value) => { const text = String(value ?? ""); return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text; }).join(",")).join("\n");
         const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
@@ -586,9 +606,9 @@
         if (!state.rows.length) { showNotice("当前没有可分享的数据。", "warn"); return; }
         const summary = aggregate(state.rows);
         const payload = {
-          v: 1,
+          v: 2,
           threshold: state.threshold,
-          rows: [...summary.byPair.values()].map((row) => [row.date, row.reviewer, row.hours]),
+          rows: [...summary.byPair.values()].map((row) => [row.date, row.firstReviewer, row.secondReviewer, row.hours]),
         };
         const link = `${window.location.origin}${window.location.pathname}#share=${encodeSharePayload(payload)}`;
         window.history.replaceState(null, "", link);
@@ -602,7 +622,7 @@
 
       function downloadTemplate() {
         if (typeof XLSX === "undefined") { showNotice("解析组件未加载，请联网后刷新页面再试。", "error"); return; }
-        const sheet = XLSX.utils.aoa_to_sheet([["一审质检人", "质检更新时间"], ["质检示例", "2026-08-29 08:15:00"]]);
+        const sheet = XLSX.utils.aoa_to_sheet([["一审质检人", "二审质检人", "质检更新时间"], ["初审示例", "复审示例", "2026-08-29 08:15:00"]]);
         const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, sheet, "质检上传");
         XLSX.writeFile(book, "质检上传模板.xlsx");
       }
@@ -612,10 +632,11 @@
       $("dropZone").addEventListener("dragleave", () => $("dropZone").classList.remove("is-dragging"));
       $("dropZone").addEventListener("drop", (event) => { event.preventDefault(); $("dropZone").classList.remove("is-dragging"); handleFile(event.dataTransfer.files[0]); });
       $("dateFilter").addEventListener("change", (event) => { state.dateFilter = event.target.value; render(); });
-      $("reviewerFilter").addEventListener("change", (event) => { state.reviewerFilter = event.target.value; render(); });
+      $("firstReviewerFilter").addEventListener("change", (event) => { state.firstReviewerFilter = event.target.value; render(); });
+      $("secondReviewerFilter").addEventListener("change", (event) => { state.secondReviewerFilter = event.target.value; render(); });
       $("thresholdInput").addEventListener("input", (event) => { const value = Math.min(90, Math.max(10, Number(event.target.value) || 30)); state.threshold = value / 100; event.target.value = value; saveState(); render(); });
-      $("loadDemo").addEventListener("click", () => { state.rows = demoRows(); state.fileName = "当前样例（预览）"; state.invalid = 0; state.isDemo = true; state.fromShare = false; state.dateFilter = "all"; state.reviewerFilter = "all"; clearShareHash(); saveState(); showNotice("已加载当前样例，上传真实文件后会自动替换样例数据。", "warn"); render(); });
-      $("clearData").addEventListener("click", () => { state.rows = []; state.fileName = ""; state.invalid = 0; state.isDemo = false; state.fromShare = false; state.dateFilter = "all"; state.reviewerFilter = "all"; clearShareHash(); localStorage.removeItem(STORAGE_KEY); clearNotice(); render(); });
+      $("loadDemo").addEventListener("click", () => { state.rows = demoRows(); state.fileName = "当前样例（预览）"; state.invalid = 0; state.isDemo = true; state.fromShare = false; state.dateFilter = "all"; state.firstReviewerFilter = "all"; state.secondReviewerFilter = "all"; clearShareHash(); saveState(); showNotice("已加载当前样例，上传真实文件后会自动替换样例数据。", "warn"); render(); });
+      $("clearData").addEventListener("click", () => { state.rows = []; state.fileName = ""; state.invalid = 0; state.isDemo = false; state.fromShare = false; state.dateFilter = "all"; state.firstReviewerFilter = "all"; state.secondReviewerFilter = "all"; clearShareHash(); localStorage.removeItem(STORAGE_KEY); clearNotice(); render(); });
       $("exportReport").addEventListener("click", exportReport);
       $("downloadTemplate").addEventListener("click", downloadTemplate);
       $("createShareLink").addEventListener("click", createShareLink);
