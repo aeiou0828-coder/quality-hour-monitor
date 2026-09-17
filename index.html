@@ -183,7 +183,7 @@
             <span>.xlsx / .xls / .csv</span>
             <input class="file-input" id="fileInput" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv">
           </label>
-          <div class="file-meta" id="fileMeta">必填字段：一审质检人、二审质检人、质检更新时间</div>
+          <div class="file-meta" id="fileMeta">必填字段：一审质检人、二审审查人、质检更新时间</div>
           <div class="upload-actions">
             <button class="btn btn-primary" id="loadDemo" type="button">加载当前样例</button>
             <button class="btn" id="clearData" type="button">清空当前数据</button>
@@ -193,7 +193,7 @@
         <section class="panel">
           <h3>上传口径</h3>
           <ul class="rule-list">
-            <li><span>质检人同时取 <code>一审质检人</code> 与 <code>二审质检人</code>，任一为空的记录跳过。</span></li>
+            <li><span>质检人同时取 <code>一审质检人</code> 与 <code>二审审查人</code>，任一为空的记录跳过。</span></li>
             <li><span>时间取 <code>质检更新时间</code>，无法解析的记录跳过。</span></li>
             <li><span>日期按更新时间所在日期归属，小时按更新时间的 00–23 点归属。</span></li>
             <li><span>每条有效记录计为 1 个质检对话；跨日对话按质检更新时间统计。</span></li>
@@ -223,7 +223,7 @@
           <div class="stat-card"><div class="stat-label">有效质检量</div><div class="stat-value" id="kpiTotal">0</div><div class="stat-context" id="kpiTotalContext">等待上传</div></div>
           <div class="stat-card"><div class="stat-label">质检日期数</div><div class="stat-value" id="kpiDates">0</div><div class="stat-context">当前筛选范围</div></div>
           <div class="stat-card"><div class="stat-label">一审质检人数</div><div class="stat-value" id="kpiFirstReviewers">0</div><div class="stat-context">按有效记录计算</div></div>
-          <div class="stat-card"><div class="stat-label">二审质检人数</div><div class="stat-value" id="kpiSecondReviewers">0</div><div class="stat-context">按有效记录计算</div></div>
+          <div class="stat-card"><div class="stat-label">二审审查人数</div><div class="stat-value" id="kpiSecondReviewers">0</div><div class="stat-context">按有效记录计算</div></div>
           <div class="stat-card"><div class="stat-label">当前峰值小时</div><div class="stat-value" id="kpiPeak">--</div><div class="stat-context" id="kpiPeakContext">等待上传</div></div>
         </div>
 
@@ -233,8 +233,8 @@
             <select class="form-select" id="dateFilter" aria-label="查看日期"><option value="all">全部日期</option></select>
             <label for="firstReviewerFilter">一审人员</label>
             <select class="form-select" id="firstReviewerFilter" aria-label="一审人员"><option value="all">全部一审人员</option></select>
-            <label for="secondReviewerFilter">二审人员</label>
-            <select class="form-select" id="secondReviewerFilter" aria-label="二审人员"><option value="all">全部二审人员</option></select>
+            <label for="secondReviewerFilter">二审审查人</label>
+            <select class="form-select" id="secondReviewerFilter" aria-label="二审审查人"><option value="all">全部二审审查人</option></select>
             <span class="text-muted" id="filterSummary">全部日期</span>
           </div>
           <div class="toolbar-right">
@@ -257,7 +257,7 @@
         <section class="section">
           <div class="section-header">
             <div class="section-title-wrap">
-              <h2>日期 × 一审质检人 × 二审质检人 × 小时</h2>
+              <h2>日期 × 一审质检人 × 二审审查人 × 小时</h2>
               <p>每个单元格为该一审、二审组合在该日期、该小时完成的质检对话数；红色表示该行的高峰小时。</p>
             </div>
           </div>
@@ -274,7 +274,7 @@
           </div>
         </section>
 
-        <div class="footer-note" id="footerNote">统计口径固定为：一审质检人 + 二审质检人 + 质检更新时间。上传后可用“导出当前汇总”下载当前筛选范围的 CSV。</div>
+        <div class="footer-note" id="footerNote">统计口径固定为：一审质检人 + 二审审查人 + 质检更新时间。上传后可用“导出当前汇总”下载当前筛选范围的 CSV。</div>
       </section>
     </main>
   </div>
@@ -427,7 +427,7 @@
         const secondReviewers = [...allSummary.secondReviewers].sort((a, b) => a.localeCompare(b, "zh-CN"));
         dateSelect.innerHTML = `<option value="all">全部日期</option>${dates.map((date) => `<option value="${esc(date)}">${esc(date)}</option>`).join("")}`;
         firstReviewerSelect.innerHTML = `<option value="all">全部一审人员</option>${firstReviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
-        secondReviewerSelect.innerHTML = `<option value="all">全部二审人员</option>${secondReviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
+        secondReviewerSelect.innerHTML = `<option value="all">全部二审审查人</option>${secondReviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
         state.dateFilter = dates.includes(previousDate) || previousDate === "all" ? previousDate : "all";
         state.firstReviewerFilter = firstReviewers.includes(previousFirstReviewer) || previousFirstReviewer === "all" ? previousFirstReviewer : "all";
         state.secondReviewerFilter = secondReviewers.includes(previousSecondReviewer) || previousSecondReviewer === "all" ? previousSecondReviewer : "all";
@@ -492,7 +492,7 @@
           const cells = row.hours.map((value, hour) => `<td class="hour-cell ${heatClass(value, max)}" title="${esc(row.date)} · 一审：${esc(row.firstReviewer)} · 二审：${esc(row.secondReviewer)} · ${hourLabel(hour)}：${fmt.format(value)} 条">${fmt.format(value)}</td>`).join("");
           return `<tr><td>${esc(row.date)}</td><td>${esc(row.firstReviewer)}</td><td>${esc(row.secondReviewer)}</td><td class="num">${fmt.format(row.total)}</td>${cells}<td class="center">${hourLabel(maxHour)}</td><td class="num">${(ratio * 100).toFixed(1)}%</td><td class="center">${flagged ? `<span class="badge badge-danger">集中度较高</span>` : `<span class="badge badge-ok">正常</span>`}</td></tr>`;
         }).join("");
-        $("hourWrap").innerHTML = `<table class="hour-table"><thead><tr><th>日期</th><th>一审质检人</th><th>二审质检人</th><th class="num">总量</th>${head}<th class="center">最高小时</th><th class="num">最高小时占比</th><th class="center">判断</th></tr></thead><tbody>${body}</tbody></table>`;
+        $("hourWrap").innerHTML = `<table class="hour-table"><thead><tr><th>日期</th><th>一审质检人</th><th>二审审查人</th><th class="num">总量</th>${head}<th class="center">最高小时</th><th class="num">最高小时占比</th><th class="center">判断</th></tr></thead><tbody>${body}</tbody></table>`;
       }
 
       function render() {
@@ -502,7 +502,7 @@
         renderKpis(summary);
         renderDaily(summary);
         renderHours(summary);
-        $("footerNote").textContent = state.rows.length ? `统计口径固定为：一审质检人 + 二审质检人 + 质检更新时间。${state.invalid ? ` 本次上传跳过 ${fmt.format(state.invalid)} 行无效记录。` : " 本次上传没有跳过记录。"} 可调整左侧阈值，预警会自动更新。` : "统计口径固定为：一审质检人 + 二审质检人 + 质检更新时间。上传后可用“导出当前汇总”下载当前筛选范围的 CSV。";
+        $("footerNote").textContent = state.rows.length ? `统计口径固定为：一审质检人 + 二审审查人 + 质检更新时间。${state.invalid ? ` 本次上传跳过 ${fmt.format(state.invalid)} 行无效记录。` : " 本次上传没有跳过记录。"} 可调整左侧阈值，预警会自动更新。` : "统计口径固定为：一审质检人 + 二审审查人 + 质检更新时间。上传后可用“导出当前汇总”下载当前筛选范围的 CSV。";
       }
 
       function saveState() {
@@ -527,9 +527,9 @@
         if (!matrix.length) throw new Error("文件没有可读取的数据。");
         const headers = matrix[0].map((value) => String(value ?? "").trim());
         const firstReviewerIndex = headers.indexOf("一审质检人");
-        const secondReviewerIndex = headers.indexOf("二审质检人");
+        const secondReviewerIndex = headers.indexOf("二审审查人");
         const timeIndex = headers.indexOf("质检更新时间");
-        if (firstReviewerIndex < 0 || secondReviewerIndex < 0 || timeIndex < 0) throw new Error("缺少必填字段。请确认表头包含“一审质检人”、“二审质检人”和“质检更新时间”。");
+        if (firstReviewerIndex < 0 || secondReviewerIndex < 0 || timeIndex < 0) throw new Error("缺少必填字段。请确认表头包含“一审质检人”、“二审审查人”和“质检更新时间”。");
         const rows = [];
         let invalid = 0;
         for (let index = 1; index < matrix.length; index += 1) {
@@ -541,7 +541,7 @@
           if (!firstReviewer || !secondReviewer || !parts || parts.month < 1 || parts.month > 12 || parts.day < 1 || parts.day > 31 || parts.hour < 0 || parts.hour > 23) { invalid += 1; continue; }
           rows.push({ date: `${parts.year}-${pad(parts.month)}-${pad(parts.day)}`, hour: parts.hour, firstReviewer, secondReviewer });
         }
-        if (!rows.length) throw new Error("没有找到同时包含有效一审质检人、二审质检人和质检更新时间的记录。");
+        if (!rows.length) throw new Error("没有找到同时包含有效一审质检人、二审审查人和质检更新时间的记录。");
         state.rows = rows;
         state.fileName = fileName;
         state.invalid = invalid;
@@ -592,7 +592,7 @@
       function exportReport() {
         const rows = pairRows(aggregate(filteredRows()));
         if (!rows.length) { showNotice("当前没有可导出的汇总数据。", "warn"); return; }
-        const headers = ["日期", "一审质检人", "二审质检人", "质检总量", ...Array.from({ length: 24 }, (_, hour) => hourLabel(hour)), "单小时最高量", "最高小时", "最高小时占比", "集中度判断"];
+        const headers = ["日期", "一审质检人", "二审审查人", "质检总量", ...Array.from({ length: 24 }, (_, hour) => hourLabel(hour)), "单小时最高量", "最高小时", "最高小时占比", "集中度判断"];
         const data = rows.map((row) => {
           const max = Math.max(...row.hours); const maxHour = row.hours.indexOf(max); const ratio = row.total ? max / row.total : 0;
           return [row.date, row.firstReviewer, row.secondReviewer, row.total, ...row.hours, max, hourLabel(maxHour), `${(ratio * 100).toFixed(1)}%`, ratio >= state.threshold ? "集中度较高" : "正常"];
@@ -622,7 +622,7 @@
 
       function downloadTemplate() {
         if (typeof XLSX === "undefined") { showNotice("解析组件未加载，请联网后刷新页面再试。", "error"); return; }
-        const sheet = XLSX.utils.aoa_to_sheet([["一审质检人", "二审质检人", "质检更新时间"], ["初审示例", "复审示例", "2026-08-29 08:15:00"]]);
+        const sheet = XLSX.utils.aoa_to_sheet([["一审质检人", "二审审查人", "质检更新时间"], ["初审示例", "复审示例", "2026-08-29 08:15:00"]]);
         const book = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(book, sheet, "质检上传");
         XLSX.writeFile(book, "质检上传模板.xlsx");
       }
