@@ -234,7 +234,7 @@
             <label for="firstReviewerFilter">一审人员</label>
             <select class="form-select" id="firstReviewerFilter" aria-label="一审人员"><option value="all">全部一审人员</option></select>
             <label for="secondReviewerFilter">二审审查人</label>
-            <select class="form-select" id="secondReviewerFilter" aria-label="二审审查人"><option value="all">全部二审审查人</option></select>
+            <select class="form-select" id="secondReviewerFilter" aria-label="二审审查人"><option value="all">全部二审审查人（含无）</option></select>
             <span class="text-muted" id="filterSummary">全部日期</span>
           </div>
           <div class="toolbar-right">
@@ -427,7 +427,7 @@
         const secondReviewers = ["无", ...[...allSummary.secondReviewers].filter((reviewer) => reviewer !== "无").sort((a, b) => a.localeCompare(b, "zh-CN"))];
         dateSelect.innerHTML = `<option value="all">全部日期</option>${dates.map((date) => `<option value="${esc(date)}">${esc(date)}</option>`).join("")}`;
         firstReviewerSelect.innerHTML = `<option value="all">全部一审人员</option>${firstReviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
-        secondReviewerSelect.innerHTML = `<option value="all">全部二审审查人</option>${secondReviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
+        secondReviewerSelect.innerHTML = `<option value="all">全部二审审查人（含无）</option>${secondReviewers.map((reviewer) => `<option value="${esc(reviewer)}">${esc(reviewer)}</option>`).join("")}`;
         state.dateFilter = dates.includes(previousDate) || previousDate === "all" ? previousDate : "all";
         state.firstReviewerFilter = firstReviewers.includes(previousFirstReviewer) || previousFirstReviewer === "all" ? previousFirstReviewer : "all";
         state.secondReviewerFilter = secondReviewers.includes(previousSecondReviewer) || previousSecondReviewer === "all" ? previousSecondReviewer : "all";
@@ -436,7 +436,7 @@
         secondReviewerSelect.value = state.secondReviewerFilter;
         const dateLabel = state.dateFilter === "all" ? `全部日期，共 ${allSummary.dates.size} 天` : state.dateFilter;
         const firstReviewerLabel = state.firstReviewerFilter === "all" ? `全部一审，共 ${allSummary.firstReviewers.size} 人` : state.firstReviewerFilter;
-        const secondReviewerLabel = state.secondReviewerFilter === "all" ? `全部二审，共 ${allSummary.secondReviewers.size} 人` : state.secondReviewerFilter;
+        const secondReviewerLabel = state.secondReviewerFilter === "all" ? `全部二审（含无），共 ${allSummary.secondReviewers.size} 类` : state.secondReviewerFilter;
         $("filterSummary").textContent = `${dateLabel} · ${firstReviewerLabel} · ${secondReviewerLabel}`;
       }
 
